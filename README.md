@@ -1,4 +1,4 @@
-**Line of Sight Communication Channels between Swarms**
+# Line of Sight Communication Channels between Swarms
 
 This project aims to design a Line of Sight (LOS) communication channel between two swarms of IoT devices (Unmanned Aerial Vehicles - UAVs) using C++ and ArduPilot. The communication channel will be enhanced with the integrated Doppler effect by calculating the distance between two UAVs and utilizing antenna gain.
 
