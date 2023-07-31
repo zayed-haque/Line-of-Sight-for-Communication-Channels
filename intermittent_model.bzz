@@ -1,0 +1,279 @@
+############################################ Variables ############################################
+
+###
+
+############################################ Variables ############################################
+
+############################################ Main Methods ############################################
+function init() {
+	math.rng.setseed(id)
+	
+	taskID = 0
+	networkToReach = 0
+	networkID = 0
+	curiosity = 0.0
+	stepsSinceStart = 0
+	utility = 1.0
+	a = 0.3
+	a_offset = 0.0
+
+	stopMovement = 0
+
+	stepsSinceBroadcasted1 = 0
+	stepsSinceBroadcasted2 = 0
+	stepsSinceBroadcasted3 = 0
+	expellStepsSince = 0
+	b = 7.50
+	curiosity_increase = 0.001
+	originalNetworkID = 0
+	c0 = 0
+	#bo = 1
+	#flow = 1.0
+	connectability = 1.0
+	centerX = 0
+	centerY = 0
+
+	waypointX = 0
+	waypointY = 0
+
+	expellStep = 0.0
+
+	phi = 0
+	if(pose.position.x > 0){
+		networkToReach = 1
+		networkID = 1
+		originalNetworkID = 1
+	}else{
+		networkToReach = 0
+		networkID = 0
+		originalNetworkID = 0
+	}
+
+	
+}
+
+function step() {
+	if(expellStepsSince > 0){expellStep = 0}
+	listen()
+	if(stepsSinceStart > 10){
+		isLeader = ((id == 0))
+		setNetworkOrigin()
+		if((taskID == 1)){
+			#update waypoint based off of task 1
+			gotoNetworkOrigin()
+		}else{
+			#update waypoint based off of task 0
+				Task0()
+		}
+
+		if(isLeader){
+			neighborBroadcast()
+		}
+		moveTowardsPoint(waypointX, waypointY)
+		evaluatePhi()
+	}
+	updateVariables()
+}
+
+
+function reset() {
+}
+
+function destroy() {
+}
+############################################ Main Methods ############################################
+
+############################################ Call Methods ############################################
+# Call this function to determine the centroid of the network
+function setNetworkOrigin(){
+	if(networkToReach == 1){
+		centerX = 2.5
+		centerY = 2.5
+	}else{
+		centerX = -2.5
+		centerY = -2.5
+	}
+}
+
+function moveTowardsPoint(){	
+	offsetx = (waypointX - pose.position.x) 
+	offsety = (waypointY - pose.position.y)
+
+	if(stopMovement){set_wheels(0.0,0.0)}else{
+
+	if ((proximity[0].value > 0.6) or (proximity[1].value > 0.6) or (proximity[7].value > 0.6)){
+		set_wheels(-10.0,10.0)
+	}else{
+		#desired yaw
+		desiredAngle = math.atan(offsety,offsetx)
+	
+		offsetYaw = desiredAngle - pose.orientation.yaw;
+	
+		leftWheelTurn = -10 * offsetYaw;
+		rightWheelTurn = 10*offsetYaw;
+		linear = 10 * math.cos(offsetYaw)
+
+		set_wheels(leftWheelTurn + linear, rightWheelTurn + linear)
+	}
+	}
+}
+
+function gotoNetworkOrigin(){
+	waypointX = centerX
+	waypointY = centerY
+}
+
+# Call this function when you want to perform Task 0
+function Task0(){
+		radius =  0.3 * math.sin((id/15.0 * 6.28 * 2.0) - stepsSinceStart/100.0) + 0.7
+		if(originalNetworkID != networkID){radius = radius + 0.3}
+		theta1 = ((id/15.0 + stepsSinceStart/1000.0) * 6.28) % 6.28
+		theta2 = ((id/15.0 * 6.28) % 6.28)
+		#theta2_offset = ((stepsSinceStart/200.0) * 6.28) % 6.28
+		
+		
+		
+		waypointX = radius * math.cos(theta1) + centerX
+		waypointY = radius * math.sin(theta1) + centerY
+
+		#log("flow -- ", flow, "; id --", id)
+}
+
+# Call this function when you want to move to a particular point (x,y)
+
+function listen(){
+
+	neighbors.listen("network",
+   function(vid, value, rid) {
+
+			if(stepsSinceBroadcasted1 >= 0){
+      	networkID = value
+				if(networkID == networkToReach){
+					if(taskID == 1){
+						taskID = 0
+						networkToReach = value
+						resetCuriosity(0.0)
+					}
+				}
+				neighborBroadcast()
+				stepsSinceBroadcasted1 = -3
+			}
+
+			if(id == 0){
+				if(networkID == 0){
+					log("gotNeighborValue")
+					if(value == 1){broadcastStop()}
+				}
+			}
+   }
+	)
+
+	neighbors.listen("curiosityReset",
+   function(vid, value, rid) {
+			if(stepsSinceBroadcasted2 >= 0){
+      	resetCuriosity(value)
+				stepsSinceBroadcasted2 = -10
+			}
+   }
+	)
+
+	neighbors.listen("stop", 
+		function(vid, value, rid) {
+			if(stepsSinceBroadcasted3 >= 0){
+      	broadcastStop()
+				stepsSinceBroadcasted2 = -10
+			}
+   }
+	)
+}
+
+function updateNetwork(){
+	#nothing yet
+}
+############################################ Call Methods ############################################
+
+
+############################################ Supporting Methods ############################################
+function calculateDistanceFromPoint(pointX, pointY){
+	posX = pose.position.x
+	posY = pose.position.y
+
+	eX = (posX-pointX)^2
+	eY = (posY-pointY)^2
+	distance = math.sqrt(eX + eY)
+
+	return distance
+}
+
+function updateVariables(){
+	stepsSinceStart = stepsSinceStart + 1
+	stepsSinceBroadcasted1	= stepsSinceBroadcasted1 + 1
+	stepsSinceBroadcasted2  = stepsSinceBroadcasted2 + 1
+	stepsSinceBroadcasted3  = stepsSinceBroadcasted3 + 1
+	expellStepsSince = expellStepsSince + 1
+
+	if(taskID == 0){
+		curiosity = curiosity + curiosity_increase;
+		connectability = 0
+		if(networkID == 1){
+			connectability = 10 - calculateDistanceFromPoint(-2.5, -2.5)#distance between current position and goto
+		}else{
+			connectability = 10 - calculateDistanceFromPoint(2.5, 2.5)#distance between current position and goto
+		}
+		#log("connectability", connectability)
+		#check for if it is becoming a data mule. If it is, send a packet to inform the network.
+		
+		if(phi < 0.0){
+			if(id == 0){}else{
+				#send reset curiosity message
+				resetCuriosity(1.0)
+				if(networkID == 0){
+					networkToReach = 1
+				}else{
+					networkToReach = 0
+				}
+				#networkToReach = !networkID
+				taskID = 1
+			}
+		}else{
+		}
+	}
+}
+
+function resetCuriosity( isExpulsion ){
+	#log("curiosity reset for -- ", id)
+	expellStep = isExpulsion
+	if(isExpulsion == 1.0){
+		expellStepsSince = 0
+		curiosity = 0.0
+	}
+	neighbors.broadcast("curiosityReset", isExpulsion)
+	if(isExpulsion){}else{
+		#log("admit logged ", id)
+	}
+}
+
+function neighborBroadcast(){
+	#log("network broadcasted for ", id)
+	neighbors.broadcast("network", networkID)
+}
+
+function broadcastStop(){
+	stopMovement = 1
+	neighbors.broadcast("stop", 0)
+	stepsSinceBroadcasted3 = -10
+}
+
+function evaluatePhi(){
+	flow_p = flow * 1.0
+	#if(id == 0){phi = 2}else{
+	#log("flow ", flow)
+
+		#log("flow ", a * flow_p)
+		phi_u = (a * flow_p)
+		phi_c = (b* (curiosity * (connectability) ) )
+		phi =  phi_u - phi_c
+	#}
+	#log("phi ", phi, "; phi_conn = ", b*(curiosity * (connectability)), "; phi_a = ", (a * 1 + ao))
+}
+############################################ Supporting Methods ############################################

@@ -1,0 +1,111 @@
+<?xml version="1.0" ?>
+<argos-configuration>
+
+  <framework>
+
+    <system threads="0" />
+
+    <experiment length="0"
+                ticks_per_second="10"
+                random_seed="90" />
+  </framework>
+
+  <!-- *************** -->
+  <!-- * Controllers * -->
+  <!-- *************** -->
+  <controllers>
+
+    <buzz_controller_kheperaiv id="sync">
+      <actuators>
+        <differential_steering implementation="default" />
+        <leds                  implementation="default" medium="leds" />
+        <range_and_bearing     implementation="default" />
+      </actuators>
+      <!--
+          The <sensors> section contains a list of the sensors used by
+          this controller.
+          If you forget a to mention a sensor here and then request it in
+          the controller, an error occurs.
+          For a list of the possible sensors, type at the command prompt:
+          $ argos3 -q sensors
+      -->
+      <sensors>
+        <kheperaiv_proximity implementation="default" show_rays="true" />
+        <range_and_bearing   implementation="medium" medium="rab"
+                             show_rays="true" noise_std_dev="0" />
+        <positioning         implementation="default" />
+      </sensors>
+      <!--
+          The <params> section is passed to the Buzz C++ controller.
+      -->
+      <params>
+        <wheel_turning hard_turn_angle_threshold="90"
+                       soft_turn_angle_threshold="70"
+                       no_turn_angle_threshold="10"
+                       max_speed="10" />
+      </params>
+    </buzz_controller_kheperaiv>
+
+  </controllers>
+
+  <loop_functions label="intermittent_model" library="build/libintermittent_model.so" />
+
+  <arena size="10, 10, 1" center="0,0,0.5">
+
+    <!-- Place four boxes in a square to delimit the arena -->
+    <box id="wall_north" size="10,0.1,0.5" movable="false">
+      <body position="0,5,0" orientation="0,0,0" />
+    </box>
+    <box id="wall_south" size="10,0.1,0.5" movable="false">
+      <body position="0,-5,0" orientation="0,0,0" />
+    </box>
+    <box id="wall_east" size="0.1,10,0.5" movable="false">
+      <body position="5,0,0" orientation="0,0,0" />
+    </box>
+    <box id="wall_west" size="0.1,10,0.5" movable="false">
+      <body position="-5,0,0" orientation="0,0,0" />
+    </box>
+
+     <distribute>
+      <position method="uniform" min="-4,-4,0" max="-2,-2,0" />
+      <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" />
+      <entity quantity="15" max_trials="100">
+        <kheperaiv id="kiv_A" rab_data_size="100" rab_range = "1">
+          <controller config="sync" />
+        </kheperaiv>
+      </entity>
+    </distribute>
+
+    <distribute>
+      <position method="uniform" min="2,2,0" max="4,4,0" />
+      <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" />
+      <entity quantity="15" max_trials="100">
+        <kheperaiv id="kiv_B" rab_data_size="100" rab_range = "1">
+          <controller config="sync" />
+        </kheperaiv>
+      </entity>
+    </distribute>
+
+  </arena>
+
+  <physics_engines>
+    <dynamics2d id="dyn2d" />
+  </physics_engines>
+
+  <media>
+    <range_and_bearing id="rab" />
+    <led id="leds" />
+  </media>
+
+  <visualization>
+    <qt-opengl>
+      <user_functions label="buzz_qt" />
+      <camera>
+        <placements>
+          <placement index="0" position="0,0,11" look_at="0,0,0" up="0,1,0" lens_focal_length="30" />
+        </placements>
+      </camera>
+    </qt-opengl>
+  </visualization>
+
+</argos-configuration>
